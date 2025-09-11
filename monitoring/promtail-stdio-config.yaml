@@ -1,0 +1,19 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: mcp-stdio-job
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: stdio-script
+          # The __path__ label tells Promtail where to find the log file
+          __path__: /mnt/logs/mcp.log
