@@ -1,5 +1,5 @@
 from mcp.server.fastmcp import FastMCP
-from tools import search_flights, get_current_weather, get_forecast, get_places, search_flights_upgraded
+from tools import search_flights, get_current_weather, get_forecast, find_places_of_interest, search_flights_upgraded
 
 from utils.logger import log 
 
@@ -10,7 +10,7 @@ def create_mcp_app() -> FastMCP:
     mcp.add_tool(search_flights_upgraded)
     mcp.add_tool(get_current_weather) 
     mcp.add_tool(get_forecast)
-    mcp.add_tool(get_places)
+    mcp.add_tool(find_places_of_interest)
 
     return mcp
 

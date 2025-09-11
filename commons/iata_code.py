@@ -7,8 +7,8 @@ from utils.error_handler import handle_tool_errors
 from utils.errors import ValidationError
 from utils.http_client import geocoding_client
 from utils.logger import log
+from utils.cache import cached_tool
 
-# --- Airport Data Loading ---
 
 @lru_cache(maxsize=1)
 def load_airports_data() -> List[Dict]:
@@ -18,7 +18,6 @@ def load_airports_data() -> List[Dict]:
     """
     try:
         with open("data/airports.json", "r", encoding="utf-8") as f:
-            # Filter for entries that are airports and have an IATA code.
             return [
                 airport for airport in json.load(f) 
                 if airport.get("iata") and airport.get("type") == "airport"
@@ -30,13 +29,42 @@ def load_airports_data() -> List[Dict]:
         log.error("Failed to decode data/airports.json.")
         return []
 
-# --- Geocoding and Coordinate Tools ---
+def get_iata_code(location: str) -> Optional[str]:
+    if len(location) == 3 and location.isalpha() and location.isupper():
+        return location
+
+    airports = load_airports_data()
+    search_term = location.lower()
+    for airport in airports:
+        if (airport.get('city') and search_term == airport['city'].lower()) or \
+           (airport.get('name') and search_term == airport['name'].lower()):
+            log.info(f"Resolved exact match '{location}' to IATA code '{airport['iata']}'.")
+            return airport['iata']
+    for airport in airports:
+        if airport.get('name') and search_term in airport['name'].lower():
+            log.info(f"Resolved partial match '{location}' to IATA code '{airport['iata']}'.")
+            return airport['iata']
+            
+    log.warning(f"Could not resolve '{location}' to an IATA code.")
+    return None
+
+
+def _haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    R = 6371.0  
+    
+    lat1_rad, lon1_rad, lat2_rad, lon2_rad = map(radians, [lat1, lon1, lat2, lon2])
+    
+    dlon = lon2_rad - lon1_rad
+    dlat = lat2_rad - lat1_rad
+    
+    a = sin(dlat / 2)**2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon / 2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    
+    return R * c
 
 @handle_tool_errors
+@cached_tool(ttl=86400) 
 async def get_coordinates(place_name: str) -> dict:
-    """
-    Gets geographic coordinates (latitude, longitude) for a given place name.
-    """
     log.info(f"Executing get_coordinates for '{place_name}'")
     if not place_name:
         raise ValidationError("Place name must be provided.")
@@ -47,37 +75,26 @@ async def get_coordinates(place_name: str) -> dict:
     if not response.get("results"):
         raise ValidationError(f"Could not find coordinates for '{place_name}'.")
 
-    return response["results"][0]
+    place_data = response["results"][0]
+    full_location_name = ", ".join(filter(None, [
+        place_data.get('name'),
+        place_data.get('admin1'),
+        place_data.get('country')
+    ]))
 
-def _haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Calculates the distance between two lat/lon points in kilometers."""
-    R = 6371.0  # Earth radius in kilometers
-    
-    lat1_rad, lon1_rad = radians(lat1), radians(lon1)
-    lat2_rad, lon2_rad = radians(lat2), radians(lon2)
-    
-    dlon = lon2_rad - lon1_rad
-    dlat = lat2_rad - lat1_rad
-    
-    a = sin(dlat / 2)**2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon / 2)**2
-    c = 2 * atan2(sqrt(a), sqrt(1 - a))
-    
-    return R * c
+    return {
+        "input_query": place_name,
+        "matched_location": full_location_name,
+        "latitude": place_data.get("latitude"),
+        "longitude": place_data.get("longitude"),
+    }
 
-# --- Primary Tool ---
 
 @handle_tool_errors
 async def find_nearest_airport(location_name: str) -> dict:
-    """
-    Finds the nearest commercial airport to a given location name.
-    Useful for destinations that do not have their own airport.
-    """
     log.info(f"Finding nearest airport for '{location_name}'")
-    try:
-        location_data = await get_coordinates(location_name)
-    except ValidationError:
-        raise ValidationError(f"Could not determine coordinates for '{location_name}'.")
-
+    
+    location_data = await get_coordinates(location_name)
     loc_lat = location_data.get("latitude")
     loc_lon = location_data.get("longitude")
 
@@ -109,7 +126,7 @@ async def find_nearest_airport(location_name: str) -> dict:
     return {
         "success": True,
         "data": {
-            "query_location": location_name,
+            "query_location": location_data['matched_location'],
             "nearest_airport": {
                 "name": closest_airport.get("name"),
                 "iata": closest_airport.get("iata"),

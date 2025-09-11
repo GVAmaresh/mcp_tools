@@ -1,5 +1,3 @@
-# tools/places.py (Slightly modified for easier chaining)
-
 from utils.error_handler import handle_tool_errors
 from utils.errors import ValidationError
 from utils.cache import cached_tool

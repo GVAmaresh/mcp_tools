@@ -1,5 +1,4 @@
 from typing import Optional
-
 from commons import get_coordinates 
 from utils import handle_tool_errors, ValidationError, cached_tool,log, weather_client
 
@@ -46,8 +45,8 @@ async def get_forecast(
         for i, date_str in enumerate(daily_data['time']):
             forecasts.append({
                 "date": date_str,
-                "max_temp": f"{daily_data['temperature_2m_max'][i]}°C",
-                "min_temp": f"{daily_data['temperature_2m_min'][i]}°C",
+                "max_temp": daily_data['temperature_2m_max'][i],
+                "min_temp": daily_data['temperature_2m_min'][i],
             })
 
     return {
@@ -56,6 +55,7 @@ async def get_forecast(
             "location": resolved_location,
             "latitude": lat,
             "longitude": lon,
+            "temperature_unit": "celsius",
             "forecasts": forecasts,
         }
     }

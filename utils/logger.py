@@ -1,4 +1,3 @@
-# utils/logger.py
 import sys
 from loguru import logger
 from config import settings

@@ -7,7 +7,6 @@ from utils.error_handler import handle_tool_errors
 from utils.errors import ValidationError
 from utils.cache import cached_tool
 from utils.logger import log
-
 from utils.http_client import google_api_client 
 
 load_dotenv()
@@ -22,17 +21,16 @@ async def get_place_details(place_id: str) -> Dict[str, Any]:
 
     params = {
         "place_id": place_id,
-        "fields": "name,rating,user_ratings_total,reviews,formatted_address,website,international_phone_number",
+        "fields": "name,rating,user_ratings_total,reviews,formatted_address,website,international_phone_number,place_id",
         "key": API_KEY,
     }
     
-    #'https://maps.googleapis.com/maps/api/place'
     response_data = await google_api_client.get_json("/details/json", params=params)
 
-    if response_data["status"] == "OK":
+    if response_data.get("status") == "OK":
         return response_data.get("result", {})
     else:
-        log.error(f"Place Details API Error: {response_data['status']}")
+        log.error(f"Place Details API Error: {response_data.get('status')}")
         return {}
 
 
@@ -94,13 +92,13 @@ async def find_places_of_interest(
     details_tasks = [get_place_details(pid) for pid in place_ids_to_fetch]
     details_results = await asyncio.gather(*details_tasks)
     
-    details_map = {result.get('name'): result for result in details_results if result}
+    details_map = {result.get('place_id'): result for result in details_results if result and result.get('place_id')}
 
     final_categorized_places = {}
     for category, places in raw_results_by_category.items():
         category_places_list = []
         for place in places:
-            place_details = details_map.get(place.get('name'))
+            place_details = details_map.get(place.get('place_id'))
             if place_details:
                 combined_place = {
                     "name": place.get("name"),
@@ -116,7 +114,7 @@ async def find_places_of_interest(
                 category_places_list.append(combined_place)
         
         final_categorized_places[category] = sorted(
-            category_places_list, key=lambda p: p["rating"], reverse=True
+            category_places_list, key=lambda p: p.get("rating", 0), reverse=True
         )
 
     return {

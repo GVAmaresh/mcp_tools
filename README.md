@@ -1,136 +1,192 @@
-# mcp_tools
+# MCP Tools: The Travel Assistant
 
-### Initialisation after cloning
+A backend service providing travel-related tools for weather, flight searches, and finding places of interest. It can be run as a RESTful API (FastAPI) or a command-line `stdio` application.
+
+## Features
+
+This project is a robust, asynchronous application featuring:
+
+  - **Core**: FastAPI & `asyncio` for high-performance non-blocking I/O.
+  - **Services**: Caching with Redis and structured JSON logging.
+  - **Deployment**: Fully containerized with Docker and ready for Kubernetes.
+  - **Testing**: Includes unit and integration tests with `pytest`.
+
+## Quickstart
+
+### 1\. Prerequisites
+
+  - Python 3.10+
+  - Docker & Docker Compose
+  - API keys for Google Maps Platform and SerpApi.
+
+### 2\. Local Setup
+
+Follow these steps to run the application locally.
 
 ```bash
+git clone https://github.com/GVAmaresh/mcp_tools
+cd mcp_tools
+
 python3 -m venv myenv
 source myenv/bin/activate
 
-pip install --upgrade pip
 pip install -r requirements.txt
 
+cp .env.example .env
+
+```
+
+### 3\. Running the Server
+
+#### FastAPI Server (HTTP API)
+
+Starts a web server on `http://127.0.0.1:8000`.
+
+```bash
+uvicorn server:app --reload
+```
+
+Access the interactive API docs at `http://127.0.0.1:8000/docs`.
+
+#### MCP Server (Command-Line)
+
+Runs the application directly in your terminal.
+
+```bash
 python mcp_server.py
 ```
 
+## Usage Examples (FastAPI Server)
 
-for fastapi
-```
-python3 -m venv myenv
-source myenv/bin/activate
+All examples target the `/invoke` endpoint of the FastAPI server.
 
-pip install --upgrade pip
-pip install -r requirements.txt
+#### 1\. Get a 3-day Forecast for the Current Location
 
-python server.py
-```
-
-explample cli line
-```
-Test Case 1: Get the forecast for Sringeri, Karnataka
+```bash
 curl -X POST http://127.0.0.1:8000/invoke \
 -H "Content-Type: application/json" \
 -d '{
     "tool_name": "get_forecast",
-    "tool_args": {
-        "location": "Sringeri, Karnataka",
-        "forecast_days": 5
-    }
+    "tool_args": { "location": "Shivamogga", "forecast_days": 3 }
 }'
+```
 
-**Test Case 2: Get current weather using coordinates**
+#### 2\. Get Current Weather for London
+
 ```bash
 curl -X POST http://127.0.0.1:8000/invoke \
 -H "Content-Type: application/json" \
 -d '{
     "tool_name": "get_current_weather",
-    "tool_args": {
-        "latitude": 13.42,
-        "longitude": 75.25
-    }
+    "tool_args": { "location": "London" }
 }'
+```
 
-**Test Case 3: Trigger a validation error**
+#### 3\. Search Flights for Next Week (IATA to City)
+
+Searches for flights from Chennai (MAA) to Goa for next Thursday.
+
 ```bash
 curl -X POST http://127.0.0.1:8000/invoke \
 -H "Content-Type: application/json" \
 -d '{
-    "tool_name": "get_forecast",
-    "tool_args": {}
+    "tool_name": "search_flights_upgraded",
+    "tool_args": {
+        "origin": "MAA",
+        "destination": "Goa",
+        "date": "2025-09-18"
+    }
 }'
 ```
 
+#### 4\. Find Restaurants in the Current Location
+
+```bash
+curl -X POST http://127.0.0.1:8000/invoke \
+-H "Content-Type: application/json" \
+-d '{
+    "tool_name": "find_places_of_interest",
+    "tool_args": {
+        "place_name": "Shivamogga, Karnataka",
+        "categories": ["restaurant"]
+    }
+}'
 ```
 
-docker-compose up --build
+#### 5\. Find Tourist Attractions using Coordinates (Bengaluru)
 
-docker-compose -f docker-compose.stdio.yml up
-
-
-```
-mcp_tools/
-│── mcp_server.py           # Entry point (loads all tools, runs MCP)
-│── config.py               # Config (env vars, Redis, RabbitMQ, API keys)
-│── requirements.txt        # Python dependencies
-│── docker-compose.yml      # Local Docker (Redis, RabbitMQ, Loki, Grafana, etc.)
-│── Dockerfile              # Container build for MCP server
-│── kubernetes/             # K8s manifests (Deployment, Service, ConfigMap, etc.)
-│
-├── tools/                  # All MCP tools grouped here
-│   ├── __init__.py
-│   ├── flight.py
-│   ├── weather.py
-│   ├── forecast.py
-│   ├── places.py
-│
-├── utils/                  # Shared utilities
-│   ├── __init__.py
-│   ├── cache.py            # Redis caching helper
-│   ├── queue.py            # RabbitMQ producer/consumer
-│   ├── logger.py           # Structured logging setup (Loki-compatible)
-│   ├── http_client.py      # Reusable async HTTP client
-│   ├── error_handler.py    # Custom exceptions, retries
-│
-├── tests/                  # Testing
-│   ├── test_flight.py
-│   ├── test_weather.py
-│   ├── test_forecast.py
-│   ├── test_places.py
-│   ├── test_integration.py
-│
-├── monitoring/             # Monitoring configs
-│   ├── prometheus.yml      # Prometheus config
-│   ├── grafana_dashboard.json
-│   ├── loki-config.yaml
+```bash
+curl -X POST http://127.0.0.1:8000/invoke \
+-H "Content-Type: application/json" \
+-d '{
+    "tool_name": "find_places_of_interest",
+    "tool_args": {
+        "latitude": 12.9716,
+        "longitude": 77.5946,
+        "categories": ["tourist attraction"]
+    }
+}'
 ```
 
+#### 6\. Error Case: Flight Search with Invalid Date
 
-### Features Breakdown
+This will return an HTTP 400 Validation Error.
 
-- Logging → Use structlog or loguru, output JSON logs → ship to Loki.
+```bash
+curl -X POST http://127.0.0.1:8000/invoke \
+-H "Content-Type: application/json" \
+-d '{
+    "tool_name": "search_flights_upgraded",
+    "tool_args": {
+        "origin": "Shivamogga",
+        "destination": "New Delhi",
+        "date": "20-10-2025"
+    }
+}'
+```
 
-- Redis (Caching) → Cache responses (e.g., weather forecast results for 10 mins).
+## Usage Examples (MCP Server)
 
-- RabbitMQ (Queueing) → For heavy requests (e.g., flight search), offload jobs.
+The `stdio` server accepts a single line of JSON as standard input.
 
-- Async Handlers → Use httpx.AsyncClient + asyncio.
- 
-- Error Handling → Custom exceptions + retries (tenacity library is great).
+#### 1\. Get a 3-day Forecast for Mumbai
 
-- Swagger Docs → If you expose a REST API for testing/debug (via FastAPI wrapper).
+```bash
+echo '{"tool_name": "get_forecast", "tool_args": {"location": "Mumbai", "forecast_days": 3}}' | python mcp_server.py
+```
 
-- Monitoring 
+#### 2\. Search for Flights
 
-    - Prometheus → Metrics
+```bash
+echo '{"tool_name": "search_flights_upgraded", "tool_args": {"origin": "Bengaluru", "destination": "Kolkata", "date": "2025-11-15"}}' | python mcp_server.py
+```
 
-    - Grafana → Dashboards
-    
-    - Loki → Logs
+#### 3\. Find Places of Interest
 
-- Kubernetes → Helm charts or manifests for scaling.
+```bash
+echo '{"tool_name": "find_places_of_interest", "tool_args": {"place_name": "Hampi", "categories": ["historical landmark"]}}' | python mcp_server.py
+```
 
-- Testing → pytest-asyncio for async unit tests + integration tests (mock Redis/RabbitMQ).
+#### 4\. Error Case: Missing Arguments
 
+The server will return a JSON object detailing the validation error.
 
-reference
-for iata code
-https://raw.githubusercontent.com/datasets/airport-codes/refs/heads/main/data/airport-codes.csv
+```bash
+echo '{"tool_name": "get_current_weather", "tool_args": {}}' | python mcp_server.py
+```
+
+## Running with Docker
+
+Using Docker is the easiest way to run the application with all its services.
+
+1.  **Full Stack (FastAPI + Services):**
+
+    ```bash
+    docker-compose up --build
+    ```
+
+2.  **Stdio Server Only:**
+
+    ```bash
+    docker-compose -f docker-compose.stdio.yml up --build
+    ```

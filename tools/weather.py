@@ -21,6 +21,7 @@ async def get_current_weather(
         resolved_location = f"Lat/Lon: {lat}, {lon}"
     else:
         raise ValidationError("You must provide either a 'location' name or 'latitude' and 'longitude'.")
+    
     params = {
         "latitude": lat,
         "longitude": lon,
@@ -38,8 +39,10 @@ async def get_current_weather(
             "location": resolved_location,
             "latitude": lat,
             "longitude": lon,
-            "temperature": f"{current_weather.get('temperature')}°C",
-            "windspeed": f"{current_weather.get('windspeed')} km/h",
+            "temperature": current_weather.get('temperature'),
+            "temperature_unit": "celsius",
+            "windspeed": current_weather.get('windspeed'),
+            "windspeed_unit": "km/h",
             "weathercode": current_weather.get('weathercode'),
             "source": "Open-Meteo Weather API"
         }

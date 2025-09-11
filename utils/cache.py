@@ -1,11 +1,9 @@
-# utils/cache.py
 import redis.asyncio as redis
 import json
 from functools import wraps
 from config import settings
 from utils.logger import log
 
-# Create a single, shared Redis connection pool
 redis_pool = redis.ConnectionPool.from_url(settings.redis_url, decode_responses=True)
 
 def get_redis_client():
