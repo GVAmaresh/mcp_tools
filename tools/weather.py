@@ -1,7 +1,6 @@
 from typing import Optional
 from commons import get_coordinates 
 from utils import handle_tool_errors, ValidationError, cached_tool,log, weather_client
-
 @handle_tool_errors
 @cached_tool(ttl=600)
 async def get_current_weather(
@@ -14,8 +13,29 @@ async def get_current_weather(
     if location:
         log.info(f"Location name provided. Calling get_coordinates for '{location}'.")
         coords = await get_coordinates(place_name=location)
-        lat, lon = coords['latitude'], coords['longitude']
-        resolved_location = coords['matched_location']
+        
+        if isinstance(coords, str):
+            try:
+                import json
+                coords_data = json.loads(coords)
+                if not coords_data.get("success", True):
+                    return coords_data
+            except json.JSONDecodeError:
+                return {
+                    "success": False,
+                    "error": f"Failed to get coordinates: {coords}",
+                    "type": "coordinate_error"
+                }
+        
+        if isinstance(coords, dict):
+            if coords.get("success", True) is False:
+                return coords
+            
+            lat, lon = coords['latitude'], coords['longitude']
+            resolved_location = coords['matched_location']
+        else:
+            raise ValidationError("Unexpected response from coordinates service")
+            
     elif latitude is not None and longitude is not None:
         lat, lon = latitude, longitude
         resolved_location = f"Lat/Lon: {lat}, {lon}"

@@ -121,3 +121,4 @@ async def find_places_of_interest(
         "search_coordinates": search_coords,
         "results": final_categorized_places
     }
+    

@@ -82,7 +82,23 @@ curl -X POST http://127.0.0.1:8000/invoke \
 }'
 ```
 
-#### 3\. Search Flights for Next Week (IATA to City)
+#### 3\. Search Flights for Next Week (IATA to City), it's working properly
+
+Searches for flights from Chennai (MAA) to Goa for next Thursday.
+```bash
+curl -X POST http://127.0.0.1:8000/invoke \
+-H "Content-Type: application/json" \
+-d '{
+    "tool_name": "search_flights",
+    "tool_args": {
+        "origin": "Chennai International Airport",
+        "destination": "Dabolim",
+        "date": "2025-09-18"
+    }
+}'
+```
+
+#### 3\. Search Flights for Next Week (IATA to City), don;t use this now,still in beta version
 
 Searches for flights from Chennai (MAA) to Goa for next Thursday.
 
