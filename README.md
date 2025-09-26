@@ -206,3 +206,19 @@ Using Docker is the easiest way to run the application with all its services.
     ```bash
     docker-compose -f docker-compose.stdio.yml up --build
     ```
+
+
+
+[help](tools/flight.py)
+
+```
+
+[help](tools/flight.py)
+
+```
+
+```bash
+
+[help](tools/flight.py)
+
+```
